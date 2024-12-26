@@ -70,6 +70,6 @@ In this project, the Flettner rotor is used as the primary means of propulsion. 
 ---
 
 ## References
-- [Magnus Effect - NASA](https://www.grc.nasa.gov/WWW/K-12/airplane/magnus.html)
+- [Magnus Effect - NASA](https://ntrs.nasa.gov/api/citations/19930086918/downloads/19930086918.pdf)
 - [Flettner Rotor Technology](https://en.wikipedia.org/wiki/Flettner_rotor)
 
