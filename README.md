@@ -11,8 +11,7 @@ This project develops a model boat powered by a Flettner rotor with control via 
 
 ## Technologies Used
 - ESP32 WROOM 32
-- OLED Display
-- Custom Plexiglas Controller
+- Custom Plexiglas Controller with an integrated OLED Display
 - 3D-Printed Components
 
 ## Getting Started
