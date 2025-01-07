@@ -4,7 +4,7 @@
 #include <math.h>
 
 uint8_t SenderAddress[] = {0xFC, 0xB4, 0x67, 0x77, 0x9B, 0x5C};
-uint8_t broadcastAddress[] = {0xE4, 0x65, 0xB8, 0x49, 0xC3, 0x68};
+uint8_t ReceiverAddress[] = {0xE4, 0x65, 0xB8, 0x49, 0xC3, 0x68};
 
 #define VRX_PIN  39
 #define VRY_PIN  36
@@ -68,11 +68,11 @@ void setup() {
 
   esp_now_peer_info_t peerInfo;
   memset(&peerInfo, 0, sizeof(peerInfo));
-  memcpy(peerInfo.peer_addr, broadcastAddress, 6);
+  memcpy(peerInfo.peer_addr, ReceiverAddress, 6);
   peerInfo.channel = 0;
   peerInfo.encrypt = false;
 
-  if (!esp_now_is_peer_exist(broadcastAddress)) {
+  if (!esp_now_is_peer_exist(ReceiverAddress)) {
     if (esp_now_add_peer(&peerInfo) != ESP_OK && TESTING_ACTIVE) {
       Serial.println("Empfänger konnte nicht hinzugefügt werden");
       return;
@@ -88,7 +88,7 @@ void loop() {
   myData.leftJoystickX = leftValues.CorrectedValueX;
   myData.leftJoystickY = leftValues.CorrectedValueY;
 
-  esp_err_t result = esp_now_send(broadcastAddress, (uint8_t *) &myData, sizeof(myData));
+  esp_err_t result = esp_now_send(ReceiverAddress, (uint8_t *) &myData, sizeof(myData));
 
   if (result == ESP_OK && TESTING_ACTIVE) {
     Serial.println("Daten erfolgreich gesendet");
