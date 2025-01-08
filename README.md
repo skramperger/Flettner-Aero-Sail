@@ -3,6 +3,8 @@
 ## Overview
 This project develops a model boat powered by a Flettner rotor with control via a custom-built controller. The primary goal is to explore alternative propulsion systems and build a functional remote-controlled model.
 
+![Flettner Aero Sail Logo](images/logo.png)
+
 ## Features
 - **Flettner Rotor Propulsion**: Innovative propulsion mechanism.
 - **ESP32 Communication**: Wi-Fi-based interaction between boat and controller.
