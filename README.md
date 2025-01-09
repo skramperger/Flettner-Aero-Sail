@@ -19,7 +19,7 @@ This project develops a model boat powered by a Flettner rotor with control via 
 ## Getting Started
 1. Clone the repository:
    ```bash
-   git clone https://github.com/skramperger/Flettner-Rotor-Boat.git
+   git clone https://github.com/skramperger/Flettner-Aero-Sail.git
 
 
 ### Requirements
