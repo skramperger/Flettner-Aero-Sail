@@ -1,6 +1,6 @@
-// =======================================
+//========================================================================================
 // Controller FAS Project
-// =======================================
+//========================================================================================
 
 #include <esp_now.h>
 #include <WiFi.h>
@@ -12,14 +12,20 @@
 uint8_t ControllerAddress[] = {0xFC, 0xB4, 0x67, 0x77, 0x9B, 0x5C};
 uint8_t BoatAddress[] =       {0xE4, 0x65, 0xB8, 0x49, 0xC3, 0x68};
 
+#define RESOLUTION 12
+#define TESTING_ACTIVE false
+
 #define VRX_PIN  39 // VN 
 #define VRY_PIN  36 // VP
-#define RESOLUTION 12
-#define TESTING_ACTIVE true
 
 // Rotary Encoder Pins
-#define ENCODER_PIN_A 32
-#define ENCODER_PIN_B 33
+#define ENCODER_PIN_A 32    // CLK Pin
+#define ENCODER_PIN_B 33    // DT Pin
+#define ENCODER_BTN   25    // optional push button pin
+
+// SDA and SCL Pins
+#define SDA_PIN 21
+#define SCL_PIN 22
 
 // OLED Display Config
 #define SCREEN_WIDTH 128
@@ -35,7 +41,7 @@ typedef struct struct_data {
   float JoystickX;
   float JoystickY;
   bool  JoystickButton;
-  float RotaryEncoderValue;
+  uint16_t RotaryEncoderValue;
   bool  RotaryEncoderButton;
 } struct_data;
 
@@ -48,7 +54,13 @@ typedef struct struct_values {
   float    ModifiedY = 0.0;
   volatile long encoderValue = 0;
   volatile long lastEncoderValue = 0;
+  int buttonState = HIGH;
+  int lastButtonState = HIGH;
+  unsigned long lastDebounceTime = 0;
+  unsigned long debounceDelay = 50; // milliseconds
+  bool reverseState = false;
   bool dataReady = true;
+  long speed = 0;
 } struct_values;
 
 struct_values Values;
@@ -56,6 +68,35 @@ struct_values Values;
 void IRAM_ATTR updateEncoderA();
 void IRAM_ATTR updateEncoderB();
 
+//========================================================================================
+// Functions
+//========================================================================================
+void onSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+  if (TESTING_ACTIVE) {
+    Serial.print("Nachricht gesendet: ");
+    Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Erfolg" : "Fehlgeschlagen");
+  }
+}
+
+/**
+ * Function that remaps the Joystick Values before they are sent via ESP-NOW
+ */
+void updateJoystickValue() {
+  Values.X = analogRead(VRX_PIN);   // try digitalread
+  Values.Y = analogRead(VRY_PIN);
+  Values.ModifiedX = map(Values.X, 0, 4095, -255, 304);    // -208 255
+  Values.ModifiedY = map(Values.Y, 0, 4095, 255, -306.5);  // 255 -310.5
+  Values.ModifiedX = constrain(Values.ModifiedX, -255, 255);
+  Values.ModifiedY = constrain(Values.ModifiedY, -255, 255);
+  myData.JoystickX = Values.ModifiedX;
+  myData.JoystickY = Values.ModifiedY;
+}
+//========================================================================================
+
+
+//========================================================================================
+// Setup
+//========================================================================================
 void setup() {
   Serial.begin(115200);
   WiFi.mode(WIFI_STA);
@@ -102,7 +143,12 @@ void setup() {
   strncpy(myData.message, "Daten werden versendet.", sizeof(myData.message) - 1);
   myData.message[sizeof(myData.message) - 1] = '\0';
 }
+//========================================================================================
 
+
+//========================================================================================
+// Loop
+//========================================================================================
 void loop() {
   if (Values.dataReady) {
     updateJoystickValue();
@@ -123,62 +169,67 @@ void loop() {
       }
     }
 
+  int reading = digitalRead(ENCODER_BTN);
+  
+  if (reading != Values.lastButtonState) {
+    Values.lastDebounceTime = millis();
+  }
 
-    if (Values.encoderValue != Values.lastEncoderValue) {
-      Values.lastEncoderValue = Values.encoderValue;
+  if ((millis() - Values.lastDebounceTime) > Values.debounceDelay) {
+    // Only update if the state has changed
+    if (reading != Values.buttonState) {
+      Values.buttonState = reading;
 
-      display.clearDisplay();
-
-      long speed = Values.encoderValue; 
-      if (speed < 0)   speed = 0;
-      if (speed > 100) speed = 100;
-
-      // Map speed 0–100 to bar width 0–128
-      int barWidth = map(speed, 0, 100, 0, SCREEN_WIDTH);
-
-      display.setCursor(0, 0);
-      display.print("Speed: ");
-      display.print(speed);
-      display.print("%");
-
-      int barHeight = 10;
-      int barY      = 16;
-      display.fillRect(0, barY, barWidth, barHeight, WHITE);
-
-      // Update the display
-      display.display();
+      // Trigger on the FALLING edge (button pressed)
+      if (Values.buttonState == LOW) {
+        Values.reverseState != Values.reverseState;
+        if (TESTING_ACTIVE) {
+          Serial.println("Button pressed!");
+          }
+        if (Values.reverseState == true) {
+          myData.RotaryEncoderValue = map(Values.speed, 0, 100, 1500, 2000);
+        } else {
+          myData.RotaryEncoderValue = map(Values.speed, 0, 100, 1500, 1000);
+        }
+      }
     }
+  }
+
+  Values.lastButtonState = reading;
 
 
+  if (Values.encoderValue != Values.lastEncoderValue) {
+    Values.lastEncoderValue = Values.encoderValue;
+
+    display.clearDisplay();
+
+    Values.speed = Values.encoderValue; 
+    if (Values.speed < 0)   Values.speed = 0;
+    if (Values.speed > 100) Values.speed = 100;   // maybe use constrain() instead? .. dunno
+
+    // Map speed 0–100 to bar width 0–128
+    int barWidth = map(Values.speed, 0, 100, 0, SCREEN_WIDTH);
+
+    display.setCursor(0, 0);
+    display.print("Speed: ");
+    display.print(Values.speed);
+    display.print("%");
+
+    int barHeight = 10;
+    int barY      = 16;
+    display.fillRect(0, barY, barWidth, barHeight, WHITE);
+
+    // Update the display
+    display.display();
+    }
   }
 }
+//========================================================================================
 
-// Functions
-//============================================
-void onSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  if (TESTING_ACTIVE) {
-    Serial.print("Nachricht gesendet: ");
-    Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Erfolg" : "Fehlgeschlagen");
-  }
-}
 
-/**
- * Function that remaps the Joystick Values before they are sent via ESP-NOW
- */
-void updateJoystickValue() {
-  Values.X = analogRead(VRX_PIN);   // try digitalread
-  Values.Y = analogRead(VRY_PIN);
-  Values.ModifiedX = map(Values.X, 0, 4095, -255, 304);    // -208 255
-  Values.ModifiedY = map(Values.Y, 0, 4095, 255, -306.5);  // 255 -310.5
-  Values.ModifiedX = constrain(Values.ModifiedX, -255, 255);
-  Values.ModifiedY = constrain(Values.ModifiedY, -255, 255);
-  myData.JoystickX = Values.ModifiedX;
-  myData.JoystickY = Values.ModifiedY;
-}
-//============================================
-
+//========================================================================================
 // ISRs
-//============================================
+//========================================================================================
 void IRAM_ATTR updateEncoderA() {
   bool A = digitalRead(ENCODER_PIN_A);
   bool B = digitalRead(ENCODER_PIN_B);
@@ -202,4 +253,4 @@ void IRAM_ATTR updateEncoderB() {
     Values.encoderValue++;
   }
 }
-//============================================
+//========================================================================================
