@@ -9,248 +9,270 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
-uint8_t ControllerAddress[] = {0xFC, 0xB4, 0x67, 0x77, 0x9B, 0x5C};
-uint8_t BoatAddress[] =       {0xE4, 0x65, 0xB8, 0x49, 0xC3, 0x68};
+//========================================================================================
+// Configuration Constants
+//========================================================================================
+static const uint8_t CONTROLLER_MAC[] = {0xFC, 0xB4, 0x67, 0x77, 0x9B, 0x5C};
+static const uint8_t BOAT_MAC[] =       {0xE4, 0x65, 0xB8, 0x49, 0xC3, 0x68};
 
-#define RESOLUTION 12
-#define TESTING_ACTIVE false
+static constexpr uint8_t JOYSTICK_X_PIN = 39;   // VRX VN
+static constexpr uint8_t JOYSTICK_Y_PIN = 36;   // VRY VP
+static constexpr uint8_t ENCODER_CLK = 32;      // A
+static constexpr uint8_t ENCODER_DT = 33;       // B
+static constexpr uint8_t ENCODER_BTN = 25;
+static constexpr uint8_t SDA_PIN = 21;
+static constexpr uint8_t SCL_PIN = 22;
 
-#define VRX_PIN  39 // VN 
-#define VRY_PIN  36 // VP
+static constexpr bool TESTING_ACTIVE = false;
+static constexpr bool CUSTOM = false;
+static constexpr unsigned long DEBOUNCE_DELAY_MS = 50;
 
-// Rotary Encoder Pins
-#define ENCODER_PIN_A 32    // CLK Pin
-#define ENCODER_PIN_B 33    // DT Pin
-#define ENCODER_BTN   25    // optional push button pin
+// Display configuration
+static constexpr uint8_t SCREEN_WIDTH = 128;
+static constexpr uint8_t SCREEN_HEIGHT = 32;
+static constexpr uint8_t OLED_ADDRESS = 0x3C;
 
-// SDA and SCL Pins
-#define SDA_PIN 21
-#define SCL_PIN 22
-
-// OLED Display Config
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 32
-#define OLED_RESET -1 // not used with ESP32
-
-// Create the display object (I2C)
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-
+//========================================================================================
+// Data Structures
+//========================================================================================
+#pragma pack(push, 1)
 // Structure for Data Transmission
-typedef struct struct_data {
-  char  message[32];
-  float JoystickX;
-  float JoystickY;
-  bool  JoystickButton;
-  uint16_t RotaryEncoderValue;
-  bool  RotaryEncoderButton;
-} struct_data;
+struct TransmitData {
+    char  message[32];
+    float joystickX;
+    float joystickY;
+    bool  joystickButton;
+    uint16_t rotaryEncoderValue;
+    bool  rotaryEncoderButton;
+};
 
-struct_data myData;
+struct ValueState {
+    uint16_t rawX = 0;
+    uint16_t rawY = 0;
+    float    processedX = 0.0;
+    float    processedY = 0.0;
+    volatile long encoderValue = 0;
+    volatile long lastEncoderValue = 0;
+    int buttonState = HIGH;
+    int lastButtonState = HIGH;
+    unsigned long lastDebounceTime = 0;
+    bool reverseState = false;
+    bool dataReady = true;
+    long speed = 0;
+};
+#pragma pack(pop)
 
-typedef struct struct_values {
-  uint16_t X = 0;
-  uint16_t Y = 0;
-  float    ModifiedX = 0.0;
-  float    ModifiedY = 0.0;
-  volatile long encoderValue = 0;
-  volatile long lastEncoderValue = 0;
-  int buttonState = HIGH;
-  int lastButtonState = HIGH;
-  unsigned long lastDebounceTime = 0;
-  unsigned long debounceDelay = 50; // milliseconds
-  bool reverseState = false;
-  bool dataReady = true;
-  long speed = 0;
-} struct_values;
+//========================================================================================
+// Global Objects
+//========================================================================================
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, -1);
+TransmitData txData;
+ValueState valueState;
 
-struct_values Values;
-
+//========================================================================================
+// Function Prototypes
+//========================================================================================
+void initializeDisplay();
+void initializeEncoder();
+void initializeESPNOW();
+void updateJoystickValues();
+void handleEncoderButton();
+void updateDisplay();
+void sendControlData();
+void resetValues();
+void onSent(const uint8_t *mac_addr, esp_now_send_status_t status);
 void IRAM_ATTR updateEncoderA();
 void IRAM_ATTR updateEncoderB();
 
 //========================================================================================
-// Functions
-//========================================================================================
-void onSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  if (TESTING_ACTIVE) {
-    Serial.print("Nachricht gesendet: ");
-    Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Erfolg" : "Fehlgeschlagen");
-  }
-}
-
-/**
- * Function that remaps the Joystick Values before they are sent via ESP-NOW
- */
-void updateJoystickValue() {
-  Values.X = analogRead(VRX_PIN);   // try digitalread
-  Values.Y = analogRead(VRY_PIN);
-  Values.ModifiedX = map(Values.X, 0, 4095, -255, 304);    // -208 255
-  Values.ModifiedY = map(Values.Y, 0, 4095, 255, -306.5);  // 255 -310.5
-  Values.ModifiedX = constrain(Values.ModifiedX, -255, 255);
-  Values.ModifiedY = constrain(Values.ModifiedY, -255, 255);
-  myData.JoystickX = Values.ModifiedX;
-  myData.JoystickY = Values.ModifiedY;
-}
-//========================================================================================
-
-
-//========================================================================================
-// Setup
+// Setup and Loop
 //========================================================================================
 void setup() {
-  Serial.begin(115200);
-  WiFi.mode(WIFI_STA);
+    Serial.begin(115200);
+    WiFi.mode(WIFI_STA);
 
+    initializeDisplay();
+    initializeEncoder();
+    initializeESPNOW();
 
-  pinMode(ENCODER_PIN_A, INPUT_PULLUP);
-  pinMode(ENCODER_PIN_B, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(ENCODER_PIN_A), updateEncoderA, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(ENCODER_PIN_B), updateEncoderB, CHANGE);
-  Wire.begin();
-  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Most 128x32 OLEDs are at I2C address 0x3C
-    Serial.println("SSD1306 allocation failed");
-    while (true); // Don’t proceed, loop forever
+    strncpy(txData.message, "Operational", sizeof(txData.message)-1);
+    txData.message[sizeof(txData.message) - 1] = '\0';
+    Serial.println("System initialized");
+}
+
+void loop() {
+    if (valueState.dataReady) {
+        updateJoystickValues();
+        handleEncoderButton();
+        updateDisplay();
+        sendControlData();
+    }
+
+    if (CUSTOM) {
+        Serial.print("Encoder Value: ");
+        txData.rotaryEncoderValue = valueState.encoderValue;
+        Serial.println(txData.rotaryEncoderValue);
   }
-  display.clearDisplay();
-  display.setTextSize(1);
-  display.setTextColor(WHITE);
-  display.setCursor(0, 0);
-  display.println("Flettner Aero Sail");
-  display.display();
-  Serial.println("Setup complete.");
+}
 
+//========================================================================================
+// Hardware Initialization
+//========================================================================================
+void initializeDisplay() {
+    Wire.begin();
+    if (!display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDRESS)) {
+        Serial.println("Display initialization failed");
+        while(true);
+    }
+    
+    display.clearDisplay();
+    display.setTextSize(1);
+    display.setTextColor(WHITE);
+    display.setCursor(0, 0);
+    display.println("Flettner Aero Sail");
+    display.display();
+}
 
-  if (esp_now_init() != ESP_OK && TESTING_ACTIVE) {
-    Serial.println("ESP-NOW konnte nicht initialisiert werden");
-    return;
-  }
+void initializeEncoder() {
+    pinMode(ENCODER_CLK, INPUT_PULLUP);
+    pinMode(ENCODER_DT, INPUT_PULLUP);
+    pinMode(ENCODER_BTN, INPUT_PULLUP);
+    attachInterrupt(digitalPinToInterrupt(ENCODER_CLK), updateEncoderA, CHANGE);
+    attachInterrupt(digitalPinToInterrupt(ENCODER_DT), updateEncoderB, CHANGE);
+}
 
-  esp_now_register_send_cb(onSent);
-
-  esp_now_peer_info_t peerInfo;
-  memset(&peerInfo, 0, sizeof(peerInfo));
-  memcpy(peerInfo.peer_addr, BoatAddress, 6);
-  peerInfo.channel = 0;
-  peerInfo.encrypt = false;
-
-  if (!esp_now_is_peer_exist(BoatAddress)) {
-    if (esp_now_add_peer(&peerInfo) != ESP_OK && TESTING_ACTIVE) {
-      Serial.println("Empfänger konnte nicht hinzugefügt werden");
+void initializeESPNOW() {
+    if (esp_now_init() != ESP_OK && TESTING_ACTIVE) {
+      Serial.println("ESP-NOW konnte nicht initialisiert werden");
       return;
     }
-  }
+    esp_now_register_send_cb(onSent);
+    esp_now_peer_info_t peerInfo;
+    memset(&peerInfo, 0, sizeof(peerInfo));
+    memcpy(peerInfo.peer_addr, BOAT_MAC, 6);
+    peerInfo.channel = 0;
+    peerInfo.encrypt = false;
 
-  strncpy(myData.message, "Daten werden versendet.", sizeof(myData.message) - 1);
-  myData.message[sizeof(myData.message) - 1] = '\0';
+    if (!esp_now_is_peer_exist(BOAT_MAC)) {
+      if (esp_now_add_peer(&peerInfo) != ESP_OK && TESTING_ACTIVE) {
+        Serial.println("Peer registration failed");
+      }
+    }
 }
-//========================================================================================
-
 
 //========================================================================================
-// Loop
+// Input Handling
 //========================================================================================
-void loop() {
-  if (Values.dataReady) {
-    updateJoystickValue();
+void updateJoystickValues() {
+    valueState.rawX = analogRead(JOYSTICK_X_PIN);
+    valueState.rawY = analogRead(JOYSTICK_Y_PIN);
 
-    esp_err_t result = esp_now_send(BoatAddress, (uint8_t *) &myData, sizeof(myData));
+    valueState.processedX = constrain(
+        map(valueState.rawX, 0, 4095, -255, 304), -255, 255);   // -208 255
+    valueState.processedY = constrain(
+        map(valueState.rawY, 0, 4095, 255, -306.5), -255, 255); // 255 -310.5
 
-    if (result == ESP_OK && TESTING_ACTIVE) {
-      Serial.println("Daten erfolgreich gesendet");
-      Serial.print("Joystick X: ");
-      Serial.println(myData.JoystickX);
-      Serial.print("Joystick Y: ");
-      Serial.println(myData.JoystickY);
-      delay(1000);
-    } else {
-      if (TESTING_ACTIVE) {
-        Serial.println("Fehler beim Senden der Daten");
-        delay(1000);
-      }
+    txData.joystickX = valueState.processedX;
+    txData.joystickY = valueState.processedY;
+}
+
+void handleEncoderButton() {
+    int currentState = digitalRead(ENCODER_BTN);
+    
+    if (currentState != valueState.lastButtonState) {
+        valueState.lastDebounceTime = millis();
     }
+    if ((millis() - valueState.lastDebounceTime) > DEBOUNCE_DELAY_MS) {
+        if (currentState != valueState.buttonState) {
+            valueState.buttonState = currentState;
 
-  int reading = digitalRead(ENCODER_BTN);
-  
-  if (reading != Values.lastButtonState) {
-    Values.lastDebounceTime = millis();
-  }
-
-  if ((millis() - Values.lastDebounceTime) > Values.debounceDelay) {
-    // Only update if the state has changed
-    if (reading != Values.buttonState) {
-      Values.buttonState = reading;
-
-      // Trigger on the FALLING edge (button pressed)
-      if (Values.buttonState == LOW) {
-        Values.reverseState != Values.reverseState;
-        if (TESTING_ACTIVE) {
-          Serial.println("Button pressed!");
-          }
-        if (Values.reverseState == true) {
-          myData.RotaryEncoderValue = map(Values.speed, 0, 100, 1500, 2000);
-        } else {
-          myData.RotaryEncoderValue = map(Values.speed, 0, 100, 1500, 1000);
+            // Trigger on the FALLING edge (button pressed)
+            if (valueState.buttonState == LOW) {
+                valueState.reverseState = !valueState.reverseState;
+                resetValues();
+                if (valueState.reverseState == true) {
+                    txData.rotaryEncoderValue = map(valueState.speed, 0, 100, 1500, 2000);
+                } else {
+                    txData.rotaryEncoderValue = map(valueState.speed, 0, 100, 1500, 1000);
+                }
+            }
         }
-      }
     }
-  }
+    valueState.lastButtonState = currentState;
+}
 
-  Values.lastButtonState = reading;
-
-
-  if (Values.encoderValue != Values.lastEncoderValue) {
-    Values.lastEncoderValue = Values.encoderValue;
-
+void resetValues(){
+    valueState.speed = 0;
+    valueState.encoderValue = 0;
+    valueState.lastEncoderValue = 0;
     display.clearDisplay();
-
-    Values.speed = Values.encoderValue; 
-    if (Values.speed < 0)   Values.speed = 0;
-    if (Values.speed > 100) Values.speed = 100;   // maybe use constrain() instead? .. dunno
-
-    // Map speed 0–100 to bar width 0–128
-    int barWidth = map(Values.speed, 0, 100, 0, SCREEN_WIDTH);
-
     display.setCursor(0, 0);
     display.print("Speed: ");
-    display.print(Values.speed);
+    display.print(valueState.speed);
     display.print("%");
-
-    int barHeight = 10;
-    int barY      = 16;
-    display.fillRect(0, barY, barWidth, barHeight, WHITE);
-
-    // Update the display
     display.display();
-    }
-  }
 }
 //========================================================================================
+// Display & Communication
+//========================================================================================
+void updateDisplay() {
+    if (valueState.encoderValue != valueState.lastEncoderValue) {
+        valueState.lastEncoderValue = valueState.encoderValue;
 
+        display.clearDisplay();
+
+        valueState.speed = constrain(valueState.encoderValue, 0, 100);
+        
+        // Update PWM value based on current speed and direction
+        txData.rotaryEncoderValue = valueState.reverseState 
+            ? map(valueState.speed, 0, 100, 1500, 2000)
+            : map(valueState.speed, 0, 100, 1500, 1000);
+
+        // Map speed 0–100 to bar width 0–128
+        int barWidth = map(valueState.speed, 0, 100, 0, SCREEN_WIDTH);
+
+        display.setCursor(0, 0);
+        display.printf("Speed: %d%%", valueState.speed);
+
+        int barHeight = 10;
+        int barY      = 16;
+        display.fillRect(0, barY, barWidth, barHeight, WHITE);
+
+        // Update the display
+        display.display();
+    }
+}
+
+void sendControlData() {
+    esp_err_t result = esp_now_send(BOAT_MAC, (uint8_t *) &txData, sizeof(txData));
+
+    if (result != ESP_OK && TESTING_ACTIVE) {
+      Serial.println("Transmission failed");
+    } 
+}
+
+void onSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+  if (TESTING_ACTIVE) {
+    Serial.print("Message sent: ");
+    Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Success" : "Failure");
+  }
+}
 
 //========================================================================================
-// ISRs
+// Encoder ISRs
 //========================================================================================
 void IRAM_ATTR updateEncoderA() {
-  bool A = digitalRead(ENCODER_PIN_A);
-  bool B = digitalRead(ENCODER_PIN_B);
+  const bool A = digitalRead(ENCODER_CLK);
+  const bool B = digitalRead(ENCODER_DT);
 
-  // Determine the direction
-  if (A == B) {
-    Values.encoderValue--;
-  } else {
-    Values.encoderValue++;
-  }
+  valueState.encoderValue += (A == B) ? -1 : 1;
+  valueState.encoderValue = constrain(valueState.encoderValue, 0, 100);
 }
 
 void IRAM_ATTR updateEncoderB() {
-  bool A = digitalRead(ENCODER_PIN_A);
-  bool B = digitalRead(ENCODER_PIN_B);
+  bool A = digitalRead(ENCODER_CLK);
+  bool B = digitalRead(ENCODER_DT);
 
-  // Determine the direction
-  if (A != B) {
-    Values.encoderValue--;
-  } else {
-    Values.encoderValue++;
-  }
+  valueState.encoderValue += (A != B) ? -1 : 1;
+  valueState.encoderValue = constrain(valueState.encoderValue, 0, 100);
 }
-//========================================================================================
