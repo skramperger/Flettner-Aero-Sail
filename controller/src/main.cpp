@@ -24,7 +24,7 @@ static constexpr uint8_t SDA_PIN = 21;
 static constexpr uint8_t SCL_PIN = 22;
 
 static constexpr bool TESTING_ACTIVE = false;
-static constexpr bool CUSTOM = false;
+static constexpr bool CUSTOM = true;
 static constexpr unsigned long DEBOUNCE_DELAY_MS = 50;
 
 // Display configuration
@@ -110,7 +110,6 @@ void loop() {
 
     if (CUSTOM) {
         Serial.print("Encoder Value: ");
-        txData.rotaryEncoderValue = valueState.encoderValue;
         Serial.println(txData.rotaryEncoderValue);
   }
 }
