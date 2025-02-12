@@ -2,136 +2,112 @@
 // Boat FAS Project
 //========================================================================================
 
-// To-Do: implement esc driver control for fin motor
-
-// Receiver: MAC Address: E4:65:B8:49:C3:68
-// Sender: MAC Address: FC:B4:67:77:9B:5C 
-// Sender (Meissl): MAC Address: A8:42:E3:B8:24:EC
-
 #include <esp_now.h>
 #include <WiFi.h>
 #include <ESP32Servo.h>
 
-#define TESTING_ACTIVE true
-#define REVERSE_ACTIVE true       // false to prevent values going below 0 for pwm     
-#define REVOLUTION_PERCENTAGE 50   // values represent 0-100%
-
-#define ESC_PIN 16
+static constexpr bool TESTING_ACTIVE = false;
+static constexpr bool REVERSE_ACTIVE = true;
+static constexpr uint8_t ESC_PIN = 16;
+static constexpr uint8_t SERVO_PIN = 17;
+static constexpr uint8_t ANGLE_OFFSET = 25;   // offset in degrees
+static constexpr uint8_t SPEED_LIMITER = 0; // ranges from 0 to 500 --- 0 being fastest/ 500 being slowest
+static constexpr uint8_t NEUTRAL_OFFSET = 20;
 
 Servo esc;
+Servo angleServo;
 
-// Structure for Data Transmission
-// Left and right represent the left or right joystick on the controller
+#pragma pack(push, 1)
 typedef struct struct_data {
-  char  message[32];
-  float JoystickX;    // goes from values -255 to 255
-  float JoystickY;    // goes from values -255 to 255
-  bool  JoystickButton;
-  uint16_t RotaryEncoderValue;
-  bool  RotaryEncoderButton;
+  char message[32];
+  float joystickX;
+  float joystickY;
+  bool joystickButton;
+  uint16_t rotaryEncoderValue;
+  bool rotaryEncoderButton;
 } struct_data;
 
-struct_data incomingData;
+struct ValueState {
+  uint16_t escValue = 1500;
+  uint16_t servoValue = 0;
+  bool dataReceived = false;
+  unsigned int angle = 0;
+  uint16_t midpoint = 2048;
+  uint16_t oldAngle = 0;
+};
 
-typedef struct output_pwm_data {
+#pragma pack(pop)
 
-} output_pwm_data;
-
-output_pwm_data signalData; 
+struct_data incomingData = {};
+ValueState valueState;
 
 //========================================================================================
-// Functions
+// Callbacks & Functions
 //========================================================================================
-// Callback function to handle received data
-void onReceive(const uint8_t * mac_addr, const uint8_t *data, int len) {
+void onReceive(const uint8_t *mac, const uint8_t *data, int len) {
   if (len == sizeof(incomingData)) {
-    memcpy(&incomingData, data, sizeof(incomingData));
-
-    String receivedMessage = String(incomingData.message);
-
-    if (TESTING_ACTIVE){
-      Serial.println("Daten empfangen:");
-      Serial.print("Nachricht: ");
-      Serial.println(receivedMessage);
-      Serial.print("Linker Joystick X-Wert: ");
-      Serial.println(incomingData.JoystickX);
-      Serial.print("Linker Joystick Y-Wert: ");
-      Serial.println(incomingData.JoystickY);
-      Serial.print("Button-Status: ");
-      if (incomingData.JoystickButton) {
-        Serial.println("Knopf A gedrückt.");
-      } else {
-        Serial.println("Knopf A nicht gedrückt.");
-      }
-      }
-  } else {
-    if (TESTING_ACTIVE){
-      Serial.println("Falsche Datenlänge empfangen!");
+    memcpy(&incomingData, data, len);
+    valueState.dataReceived = true;
+    
+    if (TESTING_ACTIVE) {
+      Serial.printf("Received: X=%.1f Y=%.1f Enc=%u\n", 
+                   incomingData.joystickX,
+                   incomingData.joystickY,
+                   incomingData.rotaryEncoderValue);
     }
   }
 }
 
-/**
- * Function that en-/disables reverse for the rotor
- * @param value the initial value to modify
- * @param allowance determines whether you want it true or false
- * returns a float value either negative or only positive depending on wether you allowance is true or false
- */
-float allowReverse(float value, bool allowance){
-  if (!allowance){
-    if (value <= 0.0){value = 0.0;}
-  } else {value = value;}
-  return value;
-}
-
-int controlPWMSignal(float joystickValue){
-  return joystickValue;
+float allowReverse(float value, bool allowance) {
+  return allowance ? value : fmaxf(value, 0.0);
 }
 
 //========================================================================================
-
-
-//========================================================================================
-// Setup
+// Setup & Loop
 //========================================================================================
 void setup() {
-  // Register the callback function to handle received data
-  esp_now_register_recv_cb(onReceive);
-
-  esc.attach(ESC_PIN);
-  esc.writeMicroseconds(1500);
-  delay(1000);  // wait until ESC is initialized
-
-  if (TESTING_ACTIVE){
-    Serial.begin(115200);
-  }
-
-  esc.attach(ESC_PIN);
-  esc.writeMicroseconds(1500);    // default value for stopping
-  delay(1000);
-
+  Serial.begin(115200);
   WiFi.mode(WIFI_STA);
-  if (esp_now_init() != ESP_OK && TESTING_ACTIVE) {
 
-    Serial.println("ESP-NOW konnte nicht initialisiert werden");
-    return;
+  angleServo.attach(SERVO_PIN);
+
+  esc.attach(ESC_PIN, 1000, 2000);
+  esc.writeMicroseconds(1500);
+  delay(2000);
+
+
+
+  if (esp_now_init() != ESP_OK) {
+    Serial.println("ESP-NOW init failed");
+    while(1);
   }
+  
+  esp_now_register_recv_cb(onReceive);
+  memset(&incomingData, 0, sizeof(incomingData)); // Ensure clean start
 }
-//========================================================================================
 
-
-//========================================================================================
-// Loop
-//========================================================================================
 void loop() {
-    incomingData.JoystickX = allowReverse(incomingData.JoystickX, REVERSE_ACTIVE);
-    incomingData.JoystickY = allowReverse(incomingData.JoystickY, REVERSE_ACTIVE);
+  if (!valueState.dataReceived) return;
 
-    if (incomingData.RotaryEncoderValue > 1450 && incomingData.RotaryEncoderValue < 1550) {
-      esc.writeMicroseconds(1500);
-    } else {
-      esc.writeMicroseconds(incomingData.RotaryEncoderValue);
-    }
-    delay(50);
+  // ESC
+  if (incomingData.rotaryEncoderValue > 1500) {valueState.escValue =      constrain(incomingData.rotaryEncoderValue, 1500, 2000 - NEUTRAL_OFFSET);}
+  else if (incomingData.rotaryEncoderValue < 1500) {valueState.escValue = constrain(incomingData.rotaryEncoderValue, 1000, 1500);}
+  else {
+    valueState.escValue = 1500;
+  }
+
+  esc.writeMicroseconds(valueState.escValue + NEUTRAL_OFFSET);
+
+  // Servo 
+  if (incomingData.joystickX < valueState.midpoint) {
+    valueState.angle = map(incomingData.joystickX, 0, valueState.midpoint, ANGLE_OFFSET, 90);
+  } else {
+    valueState.angle = map(incomingData.joystickX, valueState.midpoint, 4095, 90, 180 - ANGLE_OFFSET);
+  }
+  valueState.oldAngle = valueState.angle;
+  
+  if (valueState.oldAngle - 1 == valueState.angle || valueState.oldAngle + 1 == valueState.angle){
+    
+  }
+  angleServo.write(valueState.angle);
 }
-//========================================================================================

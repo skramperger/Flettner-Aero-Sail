@@ -2,6 +2,9 @@
 // Controller FAS Project
 //========================================================================================
 
+// To-Do: decrementing speed control 1500 stops it immediately → millis() function for timing  
+
+
 #include <esp_now.h>
 #include <WiFi.h>
 #include <Arduino.h>
@@ -24,7 +27,7 @@ static constexpr uint8_t SDA_PIN = 21;
 static constexpr uint8_t SCL_PIN = 22;
 
 static constexpr bool TESTING_ACTIVE = false;
-static constexpr bool CUSTOM = true;
+static constexpr bool CUSTOM = false;
 static constexpr unsigned long DEBOUNCE_DELAY_MS = 50;
 
 // Display configuration
@@ -171,8 +174,8 @@ void updateJoystickValues() {
     valueState.processedY = constrain(
         map(valueState.rawY, 0, 4095, 255, -306.5), -255, 255); // 255 -310.5
 
-    txData.joystickX = valueState.processedX;
-    txData.joystickY = valueState.processedY;
+    txData.joystickX = valueState.rawX;
+    txData.joystickY = valueState.rawY;
 }
 
 void handleEncoderButton() {
