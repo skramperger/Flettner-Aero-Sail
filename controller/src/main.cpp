@@ -2,8 +2,17 @@
 // Controller FAS Project
 //========================================================================================
 
-// To-Do: decrementing speed control 1500 stops it immediately → millis() function for timing  
-
+// To-Do: 
+//----------------------------------------------------------------------------------------
+// Urgent:
+//        decrementing speed control 1500 stops it immediately → millis() function for timing  
+//        let the neutral_offset be 0, when no data has been received
+//----------------------------------------------------------------------------------------
+// Ideas: 
+//        implement a speedometer for the rotating cylinder and a corresponding display output
+//        implement a maximum speed limiter (example: limit to 1750 instead of 2000)
+//        implement sleep modes for power efficiency
+//----------------------------------------------------------------------------------------
 
 #include <esp_now.h>
 #include <WiFi.h>
@@ -112,8 +121,11 @@ void loop() {
     }
 
     if (CUSTOM) {
-        Serial.print("Encoder Value: ");
-        Serial.println(txData.rotaryEncoderValue);
+        Serial.print("X Value: ");
+        Serial.println(txData.joystickX);
+        Serial.print("Y Value: ");
+        Serial.println(txData.joystickY);
+        delay(200);
   }
 }
 
@@ -141,6 +153,7 @@ void initializeEncoder() {
     pinMode(ENCODER_BTN, INPUT_PULLUP);
     attachInterrupt(digitalPinToInterrupt(ENCODER_CLK), updateEncoderA, CHANGE);
     attachInterrupt(digitalPinToInterrupt(ENCODER_DT), updateEncoderB, CHANGE);
+    txData.rotaryEncoderValue = 1500;
 }
 
 void initializeESPNOW() {
@@ -169,6 +182,7 @@ void updateJoystickValues() {
     valueState.rawX = analogRead(JOYSTICK_X_PIN);
     valueState.rawY = analogRead(JOYSTICK_Y_PIN);
 
+    // 
     valueState.processedX = constrain(
         map(valueState.rawX, 0, 4095, -255, 304), -255, 255);   // -208 255
     valueState.processedY = constrain(
@@ -214,6 +228,7 @@ void resetValues(){
     display.print("%");
     display.display();
 }
+
 //========================================================================================
 // Display & Communication
 //========================================================================================
