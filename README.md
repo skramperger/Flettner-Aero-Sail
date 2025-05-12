@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="images/logo.jpg" alt="Flettner Aero Sail Logo" width="250" />
-</p>
+<img src="images/logo.jpg" alt="Flettner Aero Sail Logo" width="250" />
 
 # Flettner-Aero-Sail  
 *Remote-controlled catamaran powered by a Flettner rotor (HTL diploma project Flettner Aero Sail 2025)*
