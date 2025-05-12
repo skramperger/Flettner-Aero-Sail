@@ -2,14 +2,16 @@
   <img src="images/logo.jpg" alt="Flettner Aero Sail Logo" width="250" />
 </p>
 
-
-<img src="images/Boot fertig OH.png" alt="Boot und Controller" width="300">
-
-
 # Flettner-Aero-Sail  
 *Remote-controlled catamaran powered by a Flettner rotor (HTL diploma project Flettner Aero Sail 2025)*
+<p align = "center">
+  <img src="images/Boot fertig OH.png" alt="Boot und Controller" width="500">
+</p>
 
 ---
+
+
+
 
 ## What this repo contains
 | Folder | Content |
