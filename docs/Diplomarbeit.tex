@@ -313,16 +313,16 @@ Die Abbildung \ref{fig:Kräftedarstellung} zeigt die Strömung und die Kraft die
 \subsection{\texorpdfstring{Boot-Aufbau (warum Katamaran, warum Flosse) \textsubscript{[M]}}{Boot-Aufbau (warum Katamaran, warum Flosse) [M]}}
 \label{sec:Boot-Aufbau}
 
-Bei der Art des Bootes fiel die Entscheidung auf einen Katamaran. Durch die Doppelrumpfbauweise ergibt sich eine hohe seitliche Stabilität, was besonders bei Wellengang oder bei einer ungleichmäßigen Gewichtsverteilung durch die Elektronik wichtig ist. Der Katamaran schwimmt sehr ruhig und kippt kaum zur Seite, was eine gleichmäßige Drehung des Rotors ermöglicht.\newline
+Bei der Art des Bootes fiel die Entscheidung auf einen Katamaran. Durch die Doppelrumpfbauweise ergibt sich eine hohe seitliche Stabilität, was besonders bei Wellengang oder bei einer ungleichmäßigen Gewichtsverteilung durch die Elektronik wichtig ist. Der Katamaran liegt sehr stabil im Wasser und kippt kaum zur Seite, was eine gleichmäßige Rotation des Rotors begünstigt.\newline
 
 Die Katamaran-Bauform bietet optimale Voraussetzungen für die Installation des Rotors und der Elektronikbox. Der Motor und der Rotor werden über einen Riemen angetrieben. Da der Riemen für einen effizienten Antrieb optimal gespannt sein muss, ist die Bauform des Bootes ideal, da der Rotor und sein Halter sehr variabel einstellbar sind. Ein weiterer Grund, warum die Entscheidung auf einen Katamaran gefallen ist, liegt im geringeren Tiefgang im Vergleich zu anderen Bauformen. Auch der optische Aspekt spielte bei der Wahl des idealen Bootes eine Rolle.\newline
 
 Die Konstruktion des Bootes wurde mit Fusion 360 umgesetzt und die Teile im 3D-Druckverfahren hergestellt. Als Drucker kam der BambuLab P1S zum Einsatz, der sich durch seine hohe Druckqualität und Genauigkeit für dieses Projekt besonders gut eignet.
 
-Das Boot besteht aus zwei Rümpfen, auch Schwimmer genannt. Diese verjüngen sich zur Bugspitze hin, um das Wasser optimal zu verdrängen. Weitere Bestandteile sind eine Mittelplatte, die beide Rümpfe verbindet, eine Elektronikbox, eine Flosse, ein Rotorhalter sowie der Rotor selbst. Beim Rotor handelt es sich um einen Zylinder mit jeweils einer Scheibe an den Enden. Zur Richtungssteuerung wurde am Heck des Bootes ein Ruder installiert. Die Flosse ist an der Unterseite der Elektronikbox montiert. Sie ist essenziell, damit das Boot geradeaus fährt und nicht abdriftet.\newline
+Das Boot besteht aus zwei Rümpfen, auch Schwimmer genannt. Diese laufen zur Bugspitze hin spitz zu, um den Wasserwiderstand zu minimieren. Weitere Bestandteile sind eine Mittelplatte, die beide Rümpfe verbindet, eine Elektronikbox, eine Flosse, ein Rotorhalter sowie der Rotor selbst. Beim Rotor handelt es sich um einen Zylinder mit jeweils einer Scheibe an den Enden. Zur Richtungssteuerung wurde am Heck des Bootes ein Ruder installiert. Die Flosse ist an der Unterseite der Elektronikbox montiert. Sie ist essenziell, damit das Boot geradeaus fährt und nicht abdriftet.\newline
 
 
-Platzierung der Flosse: Die Positionierung der Flosse direkt unter der Elektronikbox wurde bewusst gewählt, da sie den Schwerpunkt des Bootes zentral hält. Die Flosse wirkt wie eine feste Kielstruktur und sorgt dafür, dass das Boot bei Geradeausfahrt nicht ungewollt seitlich abweicht - insbesondere bei Wind- oder Rotorbetrieb. Sie verbessert somit maßgeblich die Kursstabilität.\newline
+Platzierung der Flosse: Die Flosse wurde bewusst direkt unter der Elektronikbox positioniert, da sie den Schwerpunkt des Bootes zentral hält. Die Flosse wirkt wie eine feste Kielstruktur und sorgt dafür, dass das Boot bei Geradeausfahrt nicht ungewollt seitlich abdriftet - insbesondere bei Wind- oder Rotorbetrieb. Sie verbessert somit maßgeblich die Kursstabilität.\newline
 
 Modularität und Wartung: Alle Komponenten sind modular aufgebaut und lassen sich einzeln austauschen. Die Elektronikbox kann beispielsweise leicht entnommen werden, um an der Verkabelung oder an der Software zu arbeiten. Auch der Rotor lässt sich schnell demontieren, was Reparaturen oder Upgrades erheblich vereinfacht.
 
@@ -1054,11 +1054,13 @@ Für die Stromversorgung des Bootes wird ein LiPo-Akku verwendet. Die Fernsteuer
 \newpage
 
 \subsection{\texorpdfstring{Umsetzung der Steuerung \textsubscript{[K]}}{Umsetzung der Steuerung [K]}}
+\label{sec:Umsetzund der Steuerung}
 
 Das Gesamtsystem besteht aus zwei ESP32-Boards, die über das drahtlose Protokoll ESP-NOW miteinander kommunizieren. Auf der Controller-Seite wird die Steuerungsschnittstelle samt Display und Eingabegeräten umgesetzt und auf der Boot-Seite erfolgt die Ansteuerung von Motor-ESC und Servo. Beide Firmwares sind in C++ realisiert und wurden mittels Visual Studio Code mit der Erweiterung PlatformIO programmiert. Im Folgenden wird der Aufbau und die Funktionsweise beider ESP32-Programme beschrieben, die gemeinsam die bidirektionale Steuerung und Regelung des Flettner-Rotorsystems ermöglichen. 
 
 
 \subsubsection{Gemeinsame Datenstrukturen}
+\label{sec:Gemeinsame Datenstrukturen}
 
 Beide Programme verwenden dieselbe gepackte Datenstruktur, sodass jedes Byte an exakt derselben Position liegt. Diese Struktur enthält einen 32-Byte-langen Status-String, die rohen X- und Y-Werte des Joysticks, den Joystick-Taster, den umgerechneten PWM-Sollwert des Dreh-Encoders, dessen Taster und einen noch ungenutzten Platzhalter für eine Geschwindigkeitsbegrenzung. Die Geschwindigkeitsbegrenzung wird aktuell vom Boot-Programm verwaltet und sollte durch eine Erweiterung zukünftig vom Controller übernommen werden. Weil beide Seiten die Struktur identisch definieren, kann das gesamte Paket ohne weitere Konvertierung direkt kopiert werden.
 
@@ -1075,6 +1077,7 @@ Beide Programme verwenden dieselbe gepackte Datenstruktur, sodass jedes Byte an 
 
 
 \subsubsection{Funktionsweise der Controller-Firmware}
+\label{sec:Funktionsweise der Controller-Firmware}
 
 Zunächst initialisiert das Programm den seriellen Monitor, versetzt den ESP32 in den Station-Modus und startet anschließend die Programmteile für das OLED-Display, den Dreh-Encoder und ESP-NOW. 
 
@@ -1104,6 +1107,7 @@ Während des gesamten Betriebs liest die Haupt-Schleife fortwährend die analoge
 Solange valueState.dataReady wahr ist, wird die Haupt-Schleife ausgeführt und aktualisiert somit alle Peripherie-Variablen. Sobald sich der Encoderwert ändert, rechnet das Programm den Zählerstand in einen Prozentwert zwischen null und hundert um, bestimmt daraus die gewünschte Drehzahl in Form eines PWM-Pulses zwischen 1000 und 2000 µs und aktualisiert die Anzeige. Jeder neue Sollzustand wird zusammen mit den aktuellen Joystick-Werten an das Boot gesendet. Drückt man den Encoder-Knopf, so invertiert das Programm einen booleschen Umschaltwert, setzt Geschwindigkeit und Zähler-Stand zurück und stellt dadurch die Drehrichtung um. Die Dreh-Impuls-Auswertung erfolgt per Interrupt, um auch bei schneller Betätigung keine Schritte zu verlieren. Ein Software-\gls{debouncing} unterdrückt Fehlauslösung, indem der Knopf erst als betätigt gilt, wenn nach seinem Zustandswechsel mindestens fünfzig Millisekunden vergangen sind.
 
 \subsubsection{Joystickwerte abfangen}
+\label{sec:Joystickwerte abfangen}
 
 Die Joystickwerte werden fortlaufend in der Hauptschleife erfasst und direkt in die zu übertragende Datenstruktur geschrieben. Aufgrund des internen 12-Bit-\gls{adc}s des ESP32 liegen die Messwerte im Bereich von 0 bis 4095 und können deshalb fein quantisiert werden.
 \newline\noindent\rule{\linewidth}{0.4pt}  % top stripe
@@ -1116,6 +1120,7 @@ Die Joystickwerte werden fortlaufend in der Hauptschleife erfasst und direkt in 
 
 
 \subsubsection{Drehimpulsgebertaste auslesen}
+\label{sec:Drehimpulsgebertaste auslesen}
 
 Die Funktion handleEncoderButton() liest den Drucktaster des Dreh-Encoders aus, entprellt das Signal und führt bei jedem gültigen Tastendruck ein Stillstehen des Motors und eine Richtungsumkehr aus. Die Entprellzeit \texttt{DEBOUNCE\_DELAY\_MS} ist auf \SI{50}{\milli\second} festgelegt. Nach einer gültigen fallenden Flanke setzt die Funktion alle Geschwindigkeitswerte mit \texttt{resetValues()} zurück, sodass der Rotor sofort zum Stillstand kommt. Danach berechnet \texttt{determineSpeed()} den neuen PWM-Bereich. Da sowohl Entprellung als auch Richtungswechsel im Hauptprogramm ausgeführt werden, bleibt die Interrupt-Last gering und verursacht keine unerwünschten Unterbrechungen.
 
@@ -1132,6 +1137,8 @@ Die Funktion handleEncoderButton() liest den Drucktaster des Dreh-Encoders aus, 
 % https://wokwi.com/projects/344892392214626898
 % wie man die Grafiken am Display erweitern kann
 \subsubsection{Anzeige am OLED-Display}
+\label{sec:Anzeige am OLED-Display}
+
 Nach jeder Aktualisierung löscht das Programm den Bildschirm, schreibt die aktuelle Geschwindigkeit in Prozent in die erste Zeile und zeichnet darunter einen horizontalen Balken, dessen Länge dem Prozentwert entspricht. Auf diese Weise sieht der Benutzer in Echtzeit, wie stark der Rotor angesteuert wird. 
 \newline\noindent\rule{\linewidth}{0.4pt}  % top stripe
 \lstinputlisting[
@@ -1160,6 +1167,8 @@ Nach jeder Aktualisierung löscht das Programm den Bildschirm, schreibt die aktu
 Die Prozentangabe stellt nicht den theoretisch erreichbaren Maximalwert dar, sondern bereits den durch den Faktor \texttt{SPEED\_IN\_PERCENT} abgesenkten Wert. Diese Variable begrenzt die Ober- und Untergrenze der PWM-Impulse und skaliert damit die effektive Drehzahl. Die Anzeige spiegelt somit den \emph{skalierten} Wert von 0 bis 100\% wider.
 
 \subsubsection{Datenübertragung mit ESP-NOW}
+\label{sec:Datenübertragung mit ESP-NOW}
+
 Nach der Initialisierung registriert das Programm die MAC-Adresse der Boot-Platine als Peer und kann die Befehle damit gezielt an das Gerät mit der entsprechenden Adresse weiterleiten. Jedes Mal, wenn ein Datenpaket verschickt wurde, ruft die ESP-NOW-Bibliothek den Callback onSent() auf.
 \newline\noindent\rule{\linewidth}{0.4pt}  % top stripe
 \lstinputlisting[
@@ -1176,7 +1185,9 @@ Nach der Initialisierung registriert das Programm die MAC-Adresse der Boot-Plati
 \noindent\rule{\linewidth}{0.4pt}\\[0.5em]  % bottom stripe
 Da die Verbindung von der Boot-Seite zeitlich kontrolliert wird und sich somit um die Sicherheit kümmert, muss von der Controller-Seite nichts weiteres getan werden.
 
-\subsubsection{Funktionsweise der Boat-Firmware}
+\subsubsection{Funktionsweise der Boot-Firmware}
+\label{sec:Funktionsweise der Boot-Firmware}
+
 Die Boot-Firmware startet ebenfalls in den STA-Modus, bindet das Servo und den ESC an die vorgesehenen Pins und wartet anschließend auf hereinkommende Daten.
 \newline\noindent\rule{\linewidth}{0.4pt}  % top stripe
 \lstinputlisting[
@@ -1206,6 +1217,8 @@ Im Haupt-Loop prüft das Programm zuerst, ob seit der letzten Aktualisierung meh
 \end{figure}
 
 \subsubsection{Ansteuerung von ESC und Servo}
+\label{sec:Ansteuerung von ESC und Servo}
+
 Das ESC-Update vergleicht den PWM-Wert aus dem Datenpaket mit der Neutralmarke von 1500 µs. Liegt er darüber, so begrenzt die Routine den Wert auf maximal 2000 µs minus Neutral-Offset, weil der Regler sonst sofort in Vollgas überginge. Liegt er darunter, so ist der minimale Puls 1000 µs. Nach der Begrenzung addiert das Programm einen Offset von zwanzig Mikrosekunden, weil der verwendete Regler erfahrungsgemäß erst leicht oberhalb der geometrischen Mitte wirklich stoppt.
 \newline\noindent\rule{\linewidth}{0.4pt}  % top stripe
 \lstinputlisting[
@@ -1220,7 +1233,11 @@ Die Servoroutine verwendet ausschließlich den Y-Wert des Joysticks. Wenn dieser
   label={lst:listing13-cpp}
 ]{codesnippets/boat/updateServo.cpp}
 \noindent\rule{\linewidth}{0.4pt}  % bottom stripe
+
+
 \subsubsection*{Sicherheits- und Überwachungsmechanismen}
+\label{sec:Sicherheits- und Überwachungsmechanismen}
+
 Sollte aus unerwarteten Gründen die Verbindung zwischen Controller und Boot verloren gehen, dann wird über eine Sicherheitsüberprüfung das Boot zum Stillstand gebracht. Der gesamte Sicherheitsmechanismus ist im Boot verankert, weil dort unmittelbar die gefährlichen Aktoren angeschlossen sind. Die Firmware vergleicht kontinuierlich die aktuelle Zeit mit dem Zeitstempel des letzten gültigen Pakets. 
 \newline\noindent\rule{\linewidth}{0.4pt}  % top stripe
 \lstinputlisting[
@@ -1232,6 +1249,8 @@ Wenn das Zeitintervall das definierte Limit von einer Sekunde überschreitet, sc
 
 % https://lastminuteengineers.com/handling-esp32-gpio-interrupts-tutorial/
 \subsubsection{Interrupt-Verarbeitung im Controller}
+\label{sec:Interrupt-Verarbeitung im Controller}
+
 Die beiden Interrupt-Routinen updateEncoderA() und updateEncoderB() lesen jeweils die Pegel der A- und B-Leitung des Dreh-Encoders und entscheiden anhand ihrer Kombination, ob der Zähler dekrementiert oder inkrementiert werden muss. 
 \newline\noindent\rule{\linewidth}{0.4pt}  % top stripe
 \lstinputlisting[
@@ -1242,6 +1261,7 @@ Die beiden Interrupt-Routinen updateEncoderA() und updateEncoderB() lesen jeweil
 Anschließend begrenzt eine constrain()-Anweisung den Zählerstand auf den Bereich null bis hundert, damit falsche Werte durch mechanisches Prellen oder sehr schnelles Drehen ausgeschlossen sind. IRAM\_ATTR\cite{espidf_memory_iram} sorgt dafür, dass der Compiler die Routinen in das schnellere Instruktions-RAM legt und somit kurze Latenzen garantiert.
 
 \subsubsection{Berechnung des PWM-Sollwerts}
+\label{sec:Berechnung des PWM-Sollwerts}
 In der Funktion determineSpeed() nimmt das Programm den aktuellen prozentualen Geschwindigkeitswert und bildet daraus einen Bereich zwischen 1500 µs und jeweils 500 µs ober- oder unterhalb der Mitte. 1500 µs entsprechen der Neutralstellung, 1000 µs dem maximalen Linksdreh und 2000 µs dem maximalen Rechtsdreh des Motors.
 \newline\noindent\rule{\linewidth}{0.4pt}  % top stripe
 \lstinputlisting[
@@ -1249,6 +1269,7 @@ In der Funktion determineSpeed() nimmt das Programm den aktuellen prozentualen G
   label={lst:listing16-cpp}
 ]{codesnippets/controller/determineSpeed.cpp}
 \noindent\rule{\linewidth}{0.4pt}\\[0.5em]  % bottom stripe
+
 Dieser Maximalhub wird zusätzlich mit einem variablen Faktor SPEED\_IN\_PERCENT multipliziert, sodass sich die Ober- und Untergrenzen der Drehzahl mit nur einer Konstanten global reduzieren lassen. Wenn der Reverse-Modus aktiv ist, findet die Abbildung auf der gegenüberliegenden Seite der Neutralposition statt, sodass positive Prozentwerte zu höheren Pulsbreiten führen, die oberhalb von 1500 µs liegen. \newline
 
 Bei der ternären Abfrage sieht die Berechnung wie folgt aus:
@@ -1256,13 +1277,16 @@ Bei der ternären Abfrage sieht die Berechnung wie folgt aus:
     1500 \pm (500*(\texttt{SPEED\_IN\_PERCENT}/100))
 \end{equation}
 
-Sie reicht somit von 1500 nach 1000 und von 1500 nach 2000 in Abhängigkeit von der booleschen Variable \texttt{valueState.reverseState} und der prozentuellen Geschwindigkeits Variable \texttt{SPEED\_IN\_PERCENT}.
+Sie reicht somit von 1500 nach 1000 und von 1500 nach 2000 in Abhängigkeit von der booleschen Variable \texttt{valueState.reverseState} und der prozentualen Geschwindigkeitsvariable \texttt{SPEED\_IN\_PERCENT}.
 
 
 \subsubsection{Anzeige- und Bedienkomfort}
+\label{sec:Anzeige- und Bedienkomfort}
+
 Da sämtliche Updates erst in den RAM-Puffer gegeben und erst danach gesammelt an das Display geschickt werden, treten keinerlei sichtbare Flackereffekte auf. Die Deckkraft des gefüllten Balkens gibt dem Benutzer ein unmittelbares Feedback über die eingestellte Leistung, während der numerische Prozentwert eine präzise Kontrolle erleichtert. Drückt der Nutzer den Dreh-Encoder-Knopf, wird der Bildschirm sofort gelöscht, Geschwindigkeit und Richtung werden zurückgesetzt, und der Nutzer erhält visuell die Bestätigung, dass eine neue Fahrtrichtung gewählt wurde.
 
 \subsubsection{Konfigurations-Konstanten}
+\label{sec:Konfigurations-Konstanten}
 
 Früher definierte man feste Zahlen oder Zeichenketten in C++ oft per \verb|#define|. Dabei ersetzt der Präprozessor den Namen noch vor der eigentlichen Übersetzung wortwörtlich durch den Wert. Das ist zwar bequem, hat aber seine Nachteile: Der ersetzte Text besitzt keinen Typ, kann sich unbemerkt durch das ganze Projekt schleichen und ist im Debugger nicht sichtbar. Mit \verb|static constexpr| erreicht man dasselbe. Der Wert steht bereits zur Kompilierzeit fest, ist nur deutlich ordentlicher. Die Konstante hat einen klaren Typ, respektiert Namensräume und lässt sich debuggen. Seit C++17 sind solche Konstanten außerdem \emph{inline} und dürfen gefahrlos in Headern stehen, ohne doppelte Definitionen zu verursachen. Daher greift man heute für feste Werte fast immer zu \verb|static constexpr| statt \verb|#define|.
 \\[1em]
@@ -1400,9 +1424,11 @@ I2C-Adresse des Displays. (0x3C)
 \\[-0.8em]
 
 \subsubsection*{Änderungen der Konstanten}
+\label{sec:Änderung der Konstanten}
 
 Die Konstanten sind jeweils an den konkreten Einsatzzweck anzupassen. Kommen neue ESP-Boards zum Einsatz, sollte man zunächst die MAC-Adresse jedes Moduls mit einem kleinen Hilfsprogramm auslesen und anschließend im Quellcode hinterlegen; erst dann kann die Funkverbindung aufgebaut werden. Alternativ lässt sich die MAC-Adresse auch direkt per Programmcode überschreiben(jedoch nur solange das Board nicht zurückgesetzt wird, weil es die wahre MAC-Adresse, die vom Hersteller vorgegeben ist, nicht überschreiben kann), ohne sie vorher auszulesen – die Zieladresse muss dann allerdings fix im Code stehen. Die folgenden Code-Snippets von Random Nerd Tutorials\cite{rnt_mac} zeigen beide Varianten:
 
+\newpage
 \noindent\rule{\linewidth}{0.4pt}  % top stripe
 \lstinputlisting[
   caption={MAC-Adresse lesen},
