@@ -10,7 +10,7 @@
 |--------|---------|
 | [/controller](/controller) | Arduino-ESP32 source for the hand-held controller |
 | [/boat](/boat)             | Arduino-ESP32 source for the on-board MCU |
-| `/hardware/CAD`        | Fusion 360 models (`.f3d`) and printable STLs of hull, rotor & enclosure |
+| [/hardware/CAD](/CAD)        | Fusion 360 models (`.f3d`) and printable STLs of hull, rotor & enclosure |
 | `/hardware/wiring`     | PDF schematics and pin-out drawings |
 | `/docs`                | Excerpts of the thesis, test logs, pool-trial photos |
 
