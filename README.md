@@ -1,4 +1,4 @@
-<img src="images/logo.jpg" alt="Flettner Aero Sail Logo" width="250">
+<img src="images/logo.jpg" alt="Flettner Aero Sail Logo" width="250" align ="center">
 <img src="images/Boot fertig OH.png" alt="Boot und Controller" width="300">
 
 
