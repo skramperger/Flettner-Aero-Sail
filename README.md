@@ -17,8 +17,8 @@
 ---
 
 ## Project at a glance
-|  |  |
-|--|--|
+|    |    |
+|----|----|
 | **Propulsion** | 3-D-printed Flettner rotor (Ø 61 mm × 263 mm) driven by a 2200 KV brushless DC motor |
 | **Hull** | 500 mm × 300 mm catamaran → high stability & shallow draft |
 | **Control link** | **ESP-NOW** (direct peer-to-peer, < 2 ms latency, optional AES-128) |
